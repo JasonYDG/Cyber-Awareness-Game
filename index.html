@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#ff0040">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CyberCatch">
+    <meta name="description" content="网络安全教育游戏 - 通过头部控制学习网络安全知识">
+
+    <title>CyberCatch - 网络安全防护游戏</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="icon-192.png">
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- MediaPipe Dependencies - 使用本地fallback -->
+    <script>
+        // 简化的MediaPipe替代方案，避免HTTP服务器依赖
+        window.MediaPipeAvailable = false;
+
+        // 尝试加载MediaPipe，如果失败则使用键盘/触摸控制
+        function loadMediaPipe() {
+            return new Promise((resolve) => {
+                const script1 = document.createElement('script');
+                script1.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js';
+                script1.crossOrigin = 'anonymous';
+
+                script1.onload = () => {
+                    const script2 = document.createElement('script');
+                    script2.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js';
+                    script2.crossOrigin = 'anonymous';
+
+                    script2.onload = () => {
+                        const script3 = document.createElement('script');
+                        script3.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js';
+                        script3.crossOrigin = 'anonymous';
+
+                        script3.onload = () => {
+                            const script4 = document.createElement('script');
+                            script4.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js';
+                            script4.crossOrigin = 'anonymous';
+
+                            script4.onload = () => {
+                                window.MediaPipeAvailable = true;
+                                resolve(true);
+                            };
+
+                            script4.onerror = () => resolve(false);
+                            document.head.appendChild(script4);
+                        };
+
+                        script3.onerror = () => resolve(false);
+                        document.head.appendChild(script3);
+                    };
+
+                    script2.onerror = () => resolve(false);
+                    document.head.appendChild(script2);
+                };
+
+                script1.onerror = () => resolve(false);
+                document.head.appendChild(script1);
+            });
+        }
+
+        // 页面加载时尝试加载MediaPipe
+        document.addEventListener('DOMContentLoaded', () => {
+            loadMediaPipe().then((available) => {
+                if (!available) {
+                    console.log('MediaPipe not available, using keyboard/touch controls only');
+                    // 隐藏摄像头相关UI
+                    const cameraElements = document.querySelectorAll('#output_canvas, .controls-info, .player-photo-section');
+                    cameraElements.forEach(el => {
+                        if (el) el.style.display = 'none';
+                    });
+
+                    // 显示提示信息
+                    const leftPanel = document.querySelector('.left-panel');
+                    if (leftPanel) {
+                        const notice = document.createElement('div');
+                        notice.className = 'fallback-notice';
+                        notice.innerHTML = `
+                            <h3>🎮 控制方式</h3>
+                            <p><strong>键盘控制：</strong></p>
+                            <p>← A 键：左移</p>
+                            <p>→ D 键：右移</p>
+                            <p>空格/P：暂停</p>
+                            <br>
+                            <p><strong>移动端：</strong></p>
+                            <p>使用下方按钮控制</p>
+                        `;
+                        notice.style.cssText = `
+                            background: rgba(0, 255, 255, 0.1);
+                            padding: 1rem;
+                            border-radius: 0.8rem;
+                            border: 1px solid rgba(0, 255, 255, 0.3);
+                            margin: 1rem 0;
+                            text-align: center;
+                        `;
+                        leftPanel.appendChild(notice);
+                    }
+                }
+            });
+        });
+    </script>
+</head>
+
+<body>
+    <div class="game-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="game-title">
+                <h1 class="main-title">
+                    <span class="title-icon">🛡️</span> CyberCatch
+                </h1>
+                <p class="subtitle">
+                    <span class="subtitle-icon">🎯</span>
+                    网络安全防护游戏 · 头部控制接住安全威胁
+                </p>
+            </div>
+            <div class="score-board">
+                <div class="score">分数: <span id="score">0</span></div>
+                <div class="time">时间: <span id="time">120</span>s</div>
+                <div class="level">等级: <span id="level">1</span></div>
+            </div>
+        </div>
+
+        <!-- Main Game Area -->
+        <div class="main-game">
+            <!-- Left Panel - Camera -->
+            <div class="left-panel">
+                <video id="input_video" autoplay muted playsinline></video>
+                <canvas id="output_canvas"></canvas>
+
+                <!-- Player Photo Display -->
+                <div class="player-photo-section" id="player-photo-section" style="display: none;">
+                    <h3>玩家头像</h3>
+                    <canvas id="player-photo" width="120" height="120"></canvas>
+                    <p class="privacy-note">📸 照片将在4小时后自动删除</p>
+                </div>
+            </div>
+
+            <!-- Game Board - 最大化 -->
+            <div class="game-board">
+                <canvas id="game-canvas"></canvas>
+                <div class="game-overlay" id="game-overlay">
+                    <div class="start-screen" id="start-screen">
+                        <h2>🛡️ 网络安全防护游戏</h2>
+                        <p>使用头部动作控制挡板</p>
+                        <p>接住掉落的网络威胁图案</p>
+                        <p>游戏时长: 2分钟</p>
+                        <p class="camera-notice">📷 需要摄像头权限进行头部控制</p>
+                        <button id="start-btn" class="game-btn">获取权限并开始</button>
+                    </div>
+
+                    <div class="game-over-screen" id="game-over-screen" style="display: none;">
+                        <h2>🎯 游戏结束</h2>
+                        <div class="final-score">
+                            <p>最终分数: <span id="final-score">0</span></p>
+                            <p>接住威胁: <span id="caught-count">0</span></p>
+                            <p>错过威胁: <span id="missed-count">0</span></p>
+                        </div>
+                        <div class="player-result" id="player-result">
+                            <!-- Player photo will be inserted here -->
+                        </div>
+                        <button id="restart-btn" class="game-btn">重新开始</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel - Controls and Info -->
+            <div class="right-panel">
+                <div class="controls-info">
+                    <h3>🎮 游戏控制</h3>
+                    <p>👈 向左倾斜头部 - 左移挡板</p>
+                    <p>👉 向右倾斜头部 - 右移挡板</p>
+                    <p>🎯 用挡板接住网络威胁获得分数</p>
+                    <p>⚠️ 避免让威胁掉落到底部</p>
+                </div>
+
+                <!-- Game Controls -->
+                <div class="game-controls-panel">
+                    <button id="pause-btn" disabled>暂停</button>
+                    <button id="camera-btn" style="display: none;">启动摄像头</button>
+                    <button onclick="toggleBGM()">
+                        BGM <span class="music-indicator" id="music-indicator">🎵</span>
+                    </button>
+                </div>
+
+                <!-- Score Info Panel -->
+                <div class="score-info-panel">
+                    <h3>🎯 分数说明</h3>
+                    <div class="score-item">
+                        <div class="score-color green"></div>
+                        <span>简单威胁: +10分</span>
+                    </div>
+                    <div class="score-item">
+                        <div class="score-color orange"></div>
+                        <span>中等威胁: +20分</span>
+                    </div>
+                    <div class="score-item">
+                        <div class="score-color red"></div>
+                        <span>高级威胁: +30分</span>
+                    </div>
+                    <div class="score-stats">
+                        <p>已捕获: <span id="caught-display">0</span></p>
+                        <p>已错过: <span id="missed-display">0</span></p>
+                        <p>总分数: <span id="score-display">0</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Touch Controls -->
+        <div class="mobile-controls">
+            <button class="mobile-control-btn" id="mobile-left">←</button>
+            <button class="mobile-control-btn" id="mobile-right">→</button>
+        </div>
+    </div>
+
+    <!-- Privacy Notice Modal -->
+    <div id="privacy-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📸 隐私保护声明</h2>
+            </div>
+            <div class="modal-body">
+                <p>本游戏需要使用您的摄像头进行头部动作识别。</p>
+                <p><strong>隐私保护承诺：</strong></p>
+                <ul>
+                    <li>✅ 所有图像处理均在本地进行</li>
+                    <li>✅ 不会上传任何照片到服务器</li>
+                    <li>✅ 游戏结束后的头像照片将在4小时内自动删除</li>
+                    <li>✅ 仅用于游戏体验，不做其他用途</li>
+                </ul>
+                <div class="modal-actions">
+                    <button id="accept-privacy" class="modal-btn primary">同意并开始</button>
+                    <button id="decline-privacy" class="modal-btn secondary">拒绝</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="cyber-threats.js"></script>
+    <script src="head-control.js"></script>
+    <script src="photo-manager.js"></script>
+    <script src="game-engine.js"></script>
+    <script src="mobile-touch.js"></script>
+    <script src="audio-system.js"></script>
+    <script src="main.js"></script>
+</body>
+
+</html>

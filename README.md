@@ -1,6 +1,25 @@
-# CyberCatch - 网络安全防护游戏
+# 🛡️ CyberCatch - 网络安全防护游戏
 
-一个创新的网络安全教育游戏，通过头部动作控制学习网络安全知识。
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-yellow.svg)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+[![PWA](https://img.shields.io/badge/PWA-Ready-blue.svg)](https://web.dev/progressive-web-apps/)
+[![MediaPipe](https://img.shields.io/badge/MediaPipe-Face%20Mesh-green.svg)](https://mediapipe.dev/)
+
+一个创新的网络安全教育游戏，通过AI头部动作识别技术，让用户在游戏中学习网络安全知识。支持在线和离线两种模式，具备完整的隐私保护机制。
+
+## 📸 游戏截图
+
+![游戏主界面](https://via.placeholder.com/800x400/0066cc/ffffff?text=CyberCatch+Game+Interface)
+
+## ✨ 主要特性
+
+- 🎯 **AI头部控制** - 使用MediaPipe技术进行实时人脸检测和动作识别
+- 🛡️ **网络安全教育** - 20+种真实网络威胁类型，寓教于乐
+- 📱 **多平台支持** - 桌面端、移动端完美适配
+- 🔒 **隐私保护** - 所有数据本地处理，4小时自动删除机制
+- 🌐 **离线支持** - 内置MediaPipe文件，支持完全离线运行
+- 🎵 **沉浸式体验** - 动态音效和网络安全主题音乐
+- 🏆 **排行榜系统** - 本地排行榜，记录最佳成绩
 
 ## 🎮 游戏特色
 
@@ -85,49 +104,92 @@
 
 ## 🛠️ 技术架构
 
-### 核心模块
-- **game-engine.js** → 游戏引擎和逻辑
-- **head-control.js** → 头部动作识别
-- **cyber-threats.js** → 网络威胁数据和渲染
-- **photo-manager.js** → 照片管理和隐私保护
-- **audio-system.js** → 音频系统
-- **mobile-touch.js** → 移动端触摸控制
-
-### 依赖库
-- **MediaPipe Face Mesh** → 人脸检测
-- **Web Audio API** → 音频处理
-- **Canvas 2D API** → 游戏渲染
-- **WebRTC getUserMedia** → 摄像头访问
-
-### 浏览器兼容性
-- **Chrome/Edge** → 完全支持
-- **Firefox** → 支持（可能需要手动启用摄像头）
-- **Safari** → 基本支持（iOS需要用户手势激活音频）
-- **移动浏览器** → 支持触摸控制
-
-## 📋 安装和运行
-
-### 本地运行
-1. 克隆或下载项目文件
-2. 使用HTTP服务器运行（不能直接打开HTML文件）
-3. 访问 `http://localhost:port/Cyber/index.html`
-
-### HTTP服务器示例
-```bash
-# Python 3
-python -m http.server 8000
-
-# Node.js
-npx http-server
-
-# PHP
-php -S localhost:8000
+### 📁 项目结构
+```
+cybercatch/
+├── index.html              # 在线版本主页面
+├── index_offline.html      # 离线版本主页面
+├── cache/                  # MediaPipe离线文件
+│   ├── camera_utils.js
+│   ├── control_utils.js
+│   ├── drawing_utils.js
+│   └── face_mesh.js
+├── game-engine.js          # 游戏引擎核心
+├── head-control.js         # AI头部控制系统
+├── cyber-threats.js        # 网络威胁数据库
+├── photo-manager.js        # 隐私保护照片系统
+├── leaderboard.js          # 排行榜管理
+├── audio-system.js         # 音频系统
+├── mobile-touch.js         # 移动端控制
+├── main.js                 # 主控制器
+├── style.css               # 样式文件
+├── manifest.json           # PWA配置
+└── sw.js                   # Service Worker
 ```
 
-### PWA安装
-1. 在支持的浏览器中访问游戏
-2. 点击地址栏的"安装"图标
-3. 确认安装为桌面应用
+### 🔧 核心技术
+- **前端框架**: 原生JavaScript ES6+
+- **AI技术**: MediaPipe Face Mesh (468个面部关键点)
+- **图形渲染**: Canvas 2D API
+- **音频处理**: Web Audio API
+- **摄像头访问**: WebRTC getUserMedia API
+- **本地存储**: localStorage + IndexedDB
+- **PWA支持**: Service Worker + Web App Manifest
+
+### 🌐 浏览器兼容性
+| 浏览器 | 头部控制 | 键盘控制 | 触摸控制 | PWA |
+|--------|----------|----------|----------|-----|
+| Chrome 88+ | ✅ | ✅ | ✅ | ✅ |
+| Firefox 85+ | ✅ | ✅ | ✅ | ✅ |
+| Safari 14+ | ⚠️ | ✅ | ✅ | ⚠️ |
+| Edge 88+ | ✅ | ✅ | ✅ | ✅ |
+| Mobile Chrome | ❌ | ❌ | ✅ | ✅ |
+| Mobile Safari | ❌ | ❌ | ✅ | ⚠️ |
+
+> ⚠️ 部分支持 | ❌ 不支持 | ✅ 完全支持
+
+## 🚀 快速开始
+
+### 在线版本（推荐）
+```bash
+# 1. 克隆项目
+git clone https://github.com/your-username/cybercatch.git
+cd cybercatch
+
+# 2. 启动HTTP服务器
+python -m http.server 8000
+# 或者使用Node.js
+npx http-server
+
+# 3. 访问游戏
+# 打开浏览器访问 http://localhost:8000
+```
+
+### 离线版本
+```bash
+# 1. 使用离线版本
+cp index_offline.html index.html
+
+# 2. 启动服务器（MediaPipe文件已内置在cache文件夹）
+python -m http.server 8000
+
+# 3. 访问游戏
+# 打开浏览器访问 http://localhost:8000
+```
+
+### 系统要求
+- **浏览器**: Chrome 88+, Firefox 85+, Safari 14+, Edge 88+
+- **摄像头**: 支持WebRTC的摄像头（头部控制功能）
+- **网络**: 在线版需要网络连接下载MediaPipe库
+- **HTTPS**: 生产环境需要HTTPS协议（摄像头权限要求）
+
+### 部署到生产环境
+```bash
+# 1. 确保使用HTTPS
+# 2. 配置正确的MIME类型
+# 3. 启用Service Worker缓存
+# 4. 配置CSP头部（如需要）
+```
 
 ## 🔧 配置选项
 
@@ -183,25 +245,87 @@ this.photoExpiryHours = 4;     // 照片保存时间（小时）
 - **Web技术** → 体验现代Web技术能力
 - **隐私保护** → 学习隐私保护的重要性
 
+## 🐛 故障排除
+
+### 摄像头无法启动
+- 确保浏览器有摄像头权限
+- 检查摄像头是否被其他应用占用
+- 尝试刷新页面重新获取权限
+- 使用HTTPS协议访问（生产环境必需）
+
+### MediaPipe加载失败
+- 检查网络连接（在线版本）
+- 使用离线版本：`cp index_offline.html index.html`
+- 确保cache文件夹中有完整的MediaPipe文件
+
+### 游戏性能问题
+- 降低浏览器缩放比例到100%
+- 关闭其他占用摄像头的应用
+- 使用Chrome浏览器获得最佳性能
+
+### 移动端问题
+- 确保使用触摸控制模式
+- 检查屏幕方向锁定设置
+- 某些移动浏览器不支持摄像头功能
+
 ## 🤝 贡献指南
 
-欢迎提交问题报告、功能建议或代码贡献：
+我们欢迎所有形式的贡献！
 
-1. Fork 项目
-2. 创建功能分支
-3. 提交更改
-4. 发起 Pull Request
+### 如何贡献
+1. **Fork** 本项目
+2. **创建** 功能分支 (`git checkout -b feature/AmazingFeature`)
+3. **提交** 更改 (`git commit -m 'Add some AmazingFeature'`)
+4. **推送** 到分支 (`git push origin feature/AmazingFeature`)
+5. **创建** Pull Request
+
+### 贡献类型
+- 🐛 Bug修复
+- ✨ 新功能开发
+- 📚 文档改进
+- 🎨 UI/UX优化
+- 🔧 性能优化
+- 🌐 国际化支持
+
+### 开发环境设置
+```bash
+# 1. Fork并克隆项目
+git clone https://github.com/your-username/cybercatch.git
+
+# 2. 创建开发分支
+git checkout -b feature/your-feature
+
+# 3. 启动开发服务器
+python -m http.server 8000
+
+# 4. 开始开发...
+```
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证 - 详见 LICENSE 文件
+本项目采用 [MIT 许可证](LICENSE) - 详见 LICENSE 文件了解更多信息。
 
 ## 🙏 致谢
 
-- **MediaPipe** → 提供优秀的人脸检测技术
-- **Web标准** → 使现代Web应用成为可能
-- **开源社区** → 提供技术支持和灵感
+- **[MediaPipe](https://mediapipe.dev/)** - 提供强大的AI人脸检测技术
+- **[Web APIs](https://developer.mozilla.org/en-US/docs/Web/API)** - 现代Web技术支持
+- **网络安全社区** - 提供威胁情报和安全知识
+- **开源社区** - 持续的技术支持和反馈
+
+## 📞 联系我们
+
+- **项目主页**: [GitHub Repository](https://github.com/your-username/cybercatch)
+- **问题报告**: [Issues](https://github.com/your-username/cybercatch/issues)
+- **功能请求**: [Feature Requests](https://github.com/your-username/cybercatch/issues/new?template=feature_request.md)
+
+## 🔐 安全声明
+
+本项目严格遵循隐私保护原则：
+- ✅ 所有数据本地处理，不上传到服务器
+- ✅ 摄像头数据仅用于游戏控制，不做其他用途
+- ✅ 用户照片4小时后自动删除
+- ✅ 开源代码，接受社区审查
 
 ---
 
-**注意**：本游戏需要摄像头权限才能使用头部控制功能。如果您不希望使用摄像头，可以使用键盘或触摸控制进行游戏。
+**⚠️ 重要提示**: 本游戏需要摄像头权限才能使用头部控制功能。如果您不希望使用摄像头，可以使用键盘或触摸控制进行游戏。所有摄像头数据均在本地处理，不会上传到任何服务器。

@@ -6,6 +6,7 @@ class CyberCatchGame {
         this.photoManager = null;
         this.audioSystem = null;
         this.mobileTouchHandler = null;
+        this.leaderboardManager = null;
         
         this.gameState = 'menu'; // menu, playing, paused, ended
         this.privacyAccepted = false;
@@ -48,6 +49,9 @@ class CyberCatchGame {
         
         // 初始化音频系统
         this.audioSystem = new AudioSystem();
+        
+        // 初始化排行榜管理器
+        this.leaderboardManager = new LeaderboardManager();
         window.audioSystem = this.audioSystem; // 全局访问
         
         // 初始化移动端触摸控制
@@ -58,6 +62,13 @@ class CyberCatchGame {
         // 暴露到全局作用域
         window.gameEngine = this.gameEngine;
         window.photoManager = this.photoManager;
+        window.leaderboardManager = this.leaderboardManager;
+        
+        // 延迟初始化迷你排行榜显示（等待DOM完全加载）
+        setTimeout(() => {
+            this.updateMiniLeaderboard();
+            this.setupMiniLeaderboardEvents();
+        }, 100);
     }
 
     setupEventListeners() {
@@ -95,6 +106,18 @@ class CyberCatchGame {
         
         if (declinePrivacyBtn) {
             declinePrivacyBtn.addEventListener('click', this.declinePrivacy.bind(this));
+        }
+        
+        // 排行榜按钮
+        const leaderboardBtn = document.getElementById('leaderboard-btn');
+        const viewLeaderboardBtn = document.getElementById('view-leaderboard-btn');
+        
+        if (leaderboardBtn) {
+            leaderboardBtn.addEventListener('click', this.showLeaderboard.bind(this));
+        }
+        
+        if (viewLeaderboardBtn) {
+            viewLeaderboardBtn.addEventListener('click', this.showLeaderboard.bind(this));
         }
         
         // 键盘控制
@@ -287,10 +310,13 @@ class CyberCatchGame {
                     this.audioSystem.playSound('gamestart');
                 }
                 
-                // 1秒后自动开始游戏
+                // 1秒后真正开始游戏
                 setTimeout(() => {
-                    if (this.gameState === 'menu') {
-                        this.startGame();
+                    if (this.gameState === 'playing') {
+                        // 通知游戏引擎真正开始游戏（威胁开始掉落）
+                        if (this.gameEngine) {
+                            this.gameEngine.actuallyStartGame();
+                        }
                     }
                 }, 1000);
             }
@@ -311,7 +337,13 @@ class CyberCatchGame {
     }
 
     startGame() {
-        if (this.gameState === 'playing') return;
+        console.log('Starting game...', { currentState: this.gameState });
+        
+        // 防止重复启动
+        if (this.gameState === 'playing') {
+            console.log('Game already playing, ignoring start request');
+            return;
+        }
         
         // 检查是否需要摄像头权限
         if (window.MediaPipeAvailable && !this.headControl && !this.privacyAccepted) {
@@ -325,6 +357,7 @@ class CyberCatchGame {
             return;
         }
         
+        // 设置游戏状态
         this.gameState = 'playing';
         
         // 隐藏开始屏幕
@@ -339,13 +372,30 @@ class CyberCatchGame {
             gameOverlay.style.display = 'none';
         }
         
-        // 启动游戏引擎
-        this.gameEngine.startGame();
+        // 确保游戏引擎完全重置后再启动
+        if (this.gameEngine) {
+            // 如果游戏引擎还在运行，先完全停止
+            if (this.gameEngine.gameRunning) {
+                console.log('Stopping previous game instance...');
+                this.gameEngine.resetGameState();
+            }
+            
+            // 启动游戏引擎（但威胁还不会掉落，需要等待倒计时结束）
+            this.gameEngine.startGame();
+        }
         
         // 启用控制
         this.enableControls(true);
         
-        console.log('Game started');
+        // 如果没有头部控制或已经校准完成，直接开始倒计时
+        if (!this.headControl || (this.headControl && this.headControl.calibrationCompleted)) {
+            console.log('Starting countdown immediately (no head control or already calibrated)');
+            this.showCountdown();
+        } else {
+            console.log('Waiting for head control calibration...');
+        }
+        
+        console.log('Game started successfully');
     }
 
     pauseGame() {
@@ -383,7 +433,15 @@ class CyberCatchGame {
     }
 
     restartGame() {
+        console.log('Restarting game...');
+        
+        // 重置主控制器状态
         this.gameState = 'menu';
+        
+        // 完全重置游戏引擎状态
+        if (this.gameEngine) {
+            this.gameEngine.resetGameState();
+        }
         
         // 隐藏游戏结束屏幕
         const gameOverScreen = document.getElementById('game-over-screen');
@@ -399,14 +457,13 @@ class CyberCatchGame {
             gameOverlay.style.display = 'flex';
         }
         
-        // 重置游戏引擎
-        this.gameEngine.resetGameState();
-        
         // 禁用控制
         this.enableControls(false);
         
+        // 更新UI
         this.updateUI();
-        console.log('Game restarted');
+        
+        console.log('Game restarted successfully - ready for new game');
     }
 
     onGameEnd(gameResult) {
@@ -419,6 +476,9 @@ class CyberCatchGame {
         if (this.audioSystem) {
             this.audioSystem.playSound('gameover');
         }
+        
+        // 保存到排行榜
+        this.saveToLeaderboard(gameResult);
         
         // 显示游戏结束屏幕
         this.showGameOverScreen(gameResult);
@@ -584,6 +644,98 @@ class CyberCatchGame {
     showError(message) {
         console.error(message);
         alert(message);
+    }
+
+    // 保存游戏结果到排行榜
+    saveToLeaderboard(gameResult) {
+        if (!this.leaderboardManager) return;
+
+        // 获取玩家头像
+        let playerPhoto = null;
+        if (this.photoManager) {
+            const photoCanvas = document.getElementById('player-photo');
+            if (photoCanvas) {
+                try {
+                    playerPhoto = photoCanvas.toDataURL('image/jpeg', 0.8);
+                } catch (error) {
+                    console.warn('Failed to get player photo:', error);
+                }
+            }
+        }
+
+        // 创建玩家数据
+        const playerData = {
+            playerName: '玩家', // 可以后续添加输入姓名功能
+            score: gameResult.score,
+            caughtCount: gameResult.caughtCount,
+            missedCount: gameResult.missedCount,
+            level: gameResult.level,
+            playerPhoto: playerPhoto
+        };
+
+        // 添加到排行榜
+        this.leaderboardManager.addScore(playerData);
+        const rank = this.leaderboardManager.getPlayerRank(gameResult.score);
+
+        console.log(`Player ranked #${rank} with score ${gameResult.score}`);
+
+        // 更新迷你排行榜显示
+        this.updateMiniLeaderboard();
+
+        // 如果是前3名，显示特殊消息
+        if (rank <= 3) {
+            setTimeout(() => {
+                this.showMessage(`🎉 恭喜！您获得第${rank}名！`, 3000);
+            }, 1000);
+        }
+    }
+
+    // 显示排行榜
+    showLeaderboard() {
+        if (this.leaderboardManager) {
+            this.leaderboardManager.showLeaderboard();
+        }
+    }
+
+    // 设置迷你排行榜事件监听器
+    setupMiniLeaderboardEvents() {
+        const viewFullLeaderboardBtn = document.getElementById('view-full-leaderboard');
+        if (viewFullLeaderboardBtn) {
+            viewFullLeaderboardBtn.addEventListener('click', this.showLeaderboard.bind(this));
+        }
+    }
+
+    // 更新迷你排行榜显示
+    updateMiniLeaderboard() {
+        if (!this.leaderboardManager) return;
+
+        const miniLeaderboardList = document.getElementById('mini-leaderboard-list');
+        if (!miniLeaderboardList) return;
+
+        const leaderboard = this.leaderboardManager.getLeaderboard(5); // 只显示前5名
+
+        if (leaderboard.length === 0) {
+            miniLeaderboardList.innerHTML = '<div class="no-records">暂无记录</div>';
+            return;
+        }
+
+        let html = '';
+        leaderboard.forEach((entry, index) => {
+            const rank = index + 1;
+            const rankIcon = rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : rank;
+            
+            html += `
+                <div class="mini-leaderboard-entry">
+                    <div class="mini-entry-rank ${rank <= 3 ? 'top-three' : ''}">${rankIcon}</div>
+                    <div class="mini-entry-info">
+                        <div class="mini-player-name">${entry.playerName}</div>
+                        <div class="mini-score">${entry.score}分</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        miniLeaderboardList.innerHTML = html;
     }
 
     // 获取游戏状态

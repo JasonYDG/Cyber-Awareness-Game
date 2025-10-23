@@ -5,11 +5,19 @@ class GameEngine {
         this.ctx = null;
         this.gameRunning = false;
         this.gameLoop = null;
+        this.gameStarted = false; // 新增：标记游戏是否真正开始
+        this.frameCount = 0; // 帧计数器，用于性能优化
+        this.performanceStats = {
+            frameTime: 0,
+            avgFrameTime: 0,
+            fps: 0,
+            lastFpsUpdate: 0
+        }; // 性能统计
         
         // 游戏状态
         this.score = 0;
         this.level = 1;
-        this.timeRemaining = 120; // 2分钟 = 120秒，更紧张刺激
+        this.timeRemaining = 60; // 1分钟 = 60秒，快节奏挑战
         this.caughtCount = 0;
         this.missedCount = 0;
         
@@ -19,9 +27,9 @@ class GameEngine {
         this.particles = [];
         
         // 游戏设置 - 快节奏反应游戏
-        this.threatSpawnRate = 2000; // 初始生成间隔（毫秒）- 2秒一个，更快节奏
-        this.threatSpeed = 3.0; // 大幅增加下落速度，从1.0增加到3.0
-        this.maxThreats = 5; // 增加到5个威胁，提高挑战性
+        this.threatSpawnRate = 1500; // 初始生成间隔（毫秒）- 1.5秒一个，更快节奏
+        this.threatSpeed = 5.0; // 大幅增加下落速度，从3.0增加到5.0
+        this.maxThreats = 6; // 增加20%威胁数量，从5增加到6
         this.lastThreatSpawn = 0;
         this.lastUpdate = 0;
         
@@ -66,14 +74,14 @@ class GameEngine {
     }
 
     initializeGameObjects() {
-        // 初始化挡板 - 根据画面宽度调整尺寸和速度
-        const paddleWidth = Math.min(150, this.canvas.width / 6);
+        // 初始化挡板 - 固定宽度确保3格显示
+        const paddleWidth = 240; // 直接设置为240像素，确保显示为3格宽度
         this.paddle = {
             x: this.canvas.width / 2 - paddleWidth / 2,
             y: this.canvas.height - 30,
             width: paddleWidth,
             height: 15,
-            speed: 25, // 进一步提高移动速度，从15增加到25
+            speed: 35, // 大幅提高移动速度，从25增加到35，提高灵敏度
             color: '#00ffff'
         };
         
@@ -83,31 +91,88 @@ class GameEngine {
     }
 
     startGame() {
-        if (this.gameRunning) return;
+        console.log('GameEngine.startGame called', { 
+            gameRunning: this.gameRunning, 
+            gameStarted: this.gameStarted 
+        });
         
+        // 如果游戏已经在运行，先完全停止
+        if (this.gameRunning) {
+            console.log('Game already running, resetting first...');
+            this.resetGameState();
+        }
+        
+        // 设置游戏状态
         this.gameRunning = true;
-        this.resetGameState();
+        this.gameStarted = false; // 游戏还未真正开始，等待倒计时结束
+        
+        // 重置游戏数据（但不停止游戏循环）
+        this.score = 0;
+        this.level = 1;
+        this.timeRemaining = 60;
+        this.caughtCount = 0;
+        this.missedCount = 0;
+        this.threatSpawnRate = 1000;
+        this.threatSpeed = 4;
+        this.lastThreatSpawn = 0;
+        
+        // 清空游戏对象
+        this.threats = [];
+        this.particles = [];
+        this.occupiedTracks = new Set();
+        
+        // 重新初始化游戏对象
+        this.initializeGameObjects();
+        
+        // 启动游戏循环
         this.lastUpdate = performance.now();
         this.gameLoop = requestAnimationFrame(this.update.bind(this));
         
         // 开始倒计时
         this.startTimer();
         
-        console.log('Game started');
+        console.log('GameEngine started successfully');
+    }
+
+    // 真正开始游戏（倒计时结束后调用）
+    actuallyStartGame() {
+        this.gameStarted = true;
+        // 重置威胁生成时间，确保立即开始生成
+        this.lastThreatSpawn = performance.now();
+        console.log('Game actually started - threats will now spawn');
     }
 
     resetGameState() {
+        // 完全停止当前游戏
+        this.gameRunning = false;
+        this.gameStarted = false;
+        
+        // 清理游戏循环
+        if (this.gameLoop) {
+            cancelAnimationFrame(this.gameLoop);
+            this.gameLoop = null;
+        }
+        
+        // 重置游戏数据
         this.score = 0;
         this.level = 1;
-        this.timeRemaining = 120;
+        this.timeRemaining = 60;
         this.caughtCount = 0;
         this.missedCount = 0;
         this.threatSpawnRate = 1000;
-        this.threatSpeed = 2;
+        this.threatSpeed = 4;
         this.lastThreatSpawn = 0;
         
+        // 清空游戏对象
+        this.threats = [];
+        this.particles = [];
+        this.occupiedTracks = new Set();
+        
+        // 重新初始化游戏对象
         this.initializeGameObjects();
         this.updateUI();
+        
+        console.log('Game state completely reset');
     }
 
     startTimer() {
@@ -132,13 +197,21 @@ class GameEngine {
         
         const deltaTime = currentTime - this.lastUpdate;
         
-        // 提高更新频率以减少丢帧 - 每33ms更新一次（约30FPS）
-        if (deltaTime < 33) {
+        // 优化更新频率 - 每16ms更新一次（约60FPS），提高流畅度
+        if (deltaTime < 16) {
             this.gameLoop = requestAnimationFrame(this.update.bind(this));
             return;
         }
         
         this.lastUpdate = currentTime;
+        this.frameCount++; // 增加帧计数
+        
+        // 性能监控
+        this.performanceStats.frameTime = deltaTime;
+        if (currentTime - this.performanceStats.lastFpsUpdate > 1000) {
+            this.performanceStats.fps = Math.round(1000 / this.performanceStats.frameTime);
+            this.performanceStats.lastFpsUpdate = currentTime;
+        }
         
         // 更新游戏逻辑
         this.updateLevel();
@@ -156,23 +229,33 @@ class GameEngine {
 
     updateLevel() {
         // 根据时间和分数调整等级
-        const timeElapsed = 180 - this.timeRemaining;
+        const timeElapsed = 60 - this.timeRemaining;
         const newLevel = Math.floor(timeElapsed / 20) + Math.floor(this.score / 500) + 1;
         
         if (newLevel !== this.level) {
             this.level = newLevel;
             
-            // 调整难度 - 快节奏反应游戏
-            this.threatSpawnRate = Math.max(800, 2000 - (this.level - 1) * 150); // 最快0.8秒一个
-            this.threatSpeed = 3.0 + (this.level - 1) * 0.3; // 速度快速增加
+            // 调整难度 - 平衡的反应游戏，限制最大速度
+            this.threatSpawnRate = Math.max(600, 1500 - (this.level - 1) * 150); // 最快0.6秒一个
+            this.threatSpeed = Math.min(8.0, 5.0 + (this.level - 1) * 0.3); // 限制最大速度为8.0，增长更缓慢
             // 高等级时允许更多威胁
-            this.maxThreats = Math.min(8, 5 + Math.floor((this.level - 1) / 2));
+            this.maxThreats = Math.min(10, 6 + Math.floor((this.level - 1) / 2)); // 增加20%威胁数量
             
             console.log(`Level up! Level ${this.level}, Spawn rate: ${this.threatSpawnRate}ms, Speed: ${this.threatSpeed}`);
         }
     }
 
     spawnThreats(currentTime) {
+        // 如果游戏还未真正开始（倒计时期间），不生成威胁
+        if (!this.gameStarted) {
+            // 每5秒输出一次调试信息，避免日志过多
+            if (Math.floor(currentTime / 5000) !== Math.floor(this.lastThreatSpawn / 5000)) {
+                console.log('Waiting for game to actually start...');
+                this.lastThreatSpawn = currentTime;
+            }
+            return;
+        }
+        
         // 控制威胁数量
         if (this.threats.length >= this.maxThreats) {
             return;
@@ -375,26 +458,19 @@ class GameEngine {
     }
 
     drawBackground() {
+        // 性能优化：减少背景绘制频率，每5帧绘制一次
+        if (this.frameCount % 5 !== 0) return;
+        
         // 极简背景绘制 - 轨道辅助线（可选）
-        this.ctx.strokeStyle = 'rgba(0, 255, 255, 0.03)';
+        this.ctx.strokeStyle = 'rgba(0, 255, 255, 0.02)'; // 进一步降低透明度
         this.ctx.lineWidth = 1;
         
-        // 绘制轨道分隔线（非常淡，仅作参考）
+        // 只绘制轨道分隔线，移除水平线以提高性能
         for (let i = 1; i < this.trackCount; i++) {
             const x = i * this.trackWidth;
             this.ctx.beginPath();
             this.ctx.moveTo(x, 0);
             this.ctx.lineTo(x, this.canvas.height);
-            this.ctx.stroke();
-        }
-        
-        // 绘制几条水平参考线
-        const horizontalLines = 3;
-        for (let i = 1; i <= horizontalLines; i++) {
-            const y = (this.canvas.height / (horizontalLines + 1)) * i;
-            this.ctx.beginPath();
-            this.ctx.moveTo(0, y);
-            this.ctx.lineTo(this.canvas.width, y);
             this.ctx.stroke();
         }
     }
@@ -413,18 +489,20 @@ class GameEngine {
         this.ctx.fillStyle = paddle.color;
         this.ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
         
-        // 绘制发光效果
-        this.ctx.shadowColor = paddle.color;
-        this.ctx.shadowBlur = 10;
-        this.ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
-        this.ctx.shadowBlur = 0;
+        // 性能优化：只在每3帧绘制一次发光效果
+        if (this.frameCount % 3 === 0) {
+            this.ctx.shadowColor = paddle.color;
+            this.ctx.shadowBlur = 8; // 减少模糊半径以提高性能
+            this.ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+            this.ctx.shadowBlur = 0;
+        }
         
         // 绘制边框
         this.ctx.strokeStyle = '#ffffff';
         this.ctx.lineWidth = 2;
         this.ctx.strokeRect(paddle.x, paddle.y, paddle.width, paddle.height);
         
-        // 绘制中心线
+        // 简化中心线绘制
         this.ctx.strokeStyle = '#ff0040';
         this.ctx.lineWidth = 1;
         this.ctx.beginPath();
@@ -463,12 +541,15 @@ class GameEngine {
             this.ctx.fillText(`时间: ${this.timeRemaining}s`, this.canvas.width / 2, 40);
         }
         
-        // 调试信息 - 显示当前威胁数量
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-        this.ctx.font = '12px Arial';
-        this.ctx.textAlign = 'left';
-        this.ctx.fillText(`威胁: ${this.threats.length}/${this.maxThreats}`, 10, 20);
-        this.ctx.fillText(`粒子: ${this.particles.length}`, 10, 35);
+        // 性能优化：调试信息每10帧更新一次
+        if (this.frameCount % 10 === 0) {
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            this.ctx.font = '12px Arial';
+            this.ctx.textAlign = 'left';
+            this.ctx.fillText(`威胁: ${this.threats.length}/${this.maxThreats}`, 10, 20);
+            this.ctx.fillText(`粒子: ${this.particles.length}`, 10, 35);
+            this.ctx.fillText(`FPS: ${this.performanceStats.fps}`, 10, 50);
+        }
     }
 
 
@@ -571,7 +652,7 @@ class GameEngine {
         if (this.paddle) {
             // 调整挡板位置和尺寸
             this.paddle.y = this.canvas.height - 30;
-            this.paddle.width = Math.min(150, this.canvas.width / 6); // 根据画面宽度调整挡板大小
+            this.paddle.width = 240; // 固定宽度确保3格显示
             if (this.paddle.x + this.paddle.width > this.canvas.width) {
                 this.paddle.x = this.canvas.width - this.paddle.width;
             }

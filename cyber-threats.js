@@ -240,20 +240,55 @@ class CyberThreats {
         return baseThreats;
     }
 
-    // 随机获取一个威胁
+    // 随机获取一个威胁 - 按比例分配颜色 红:黄:绿 = 1:2:3
     getRandomThreat(level = 1) {
-        const availableThreats = this.getThreatsForLevel(level);
-        const randomIndex = Math.floor(Math.random() * availableThreats.length);
-        const threat = { ...availableThreats[randomIndex] };
+        // 使用加权随机选择来控制颜色比例
+        // 绿色(100分): 50% (3/6)
+        // 黄色(200分): 33.3% (2/6) 
+        // 红色(300分): 16.7% (1/6)
+        const random = Math.random();
+        let threat;
         
-        // 简化分数为3个档次：10分、20分、30分
-        if (threat.points <= 15) {
-            threat.points = 10;
-        } else if (threat.points <= 25) {
-            threat.points = 20;
+        if (random < 0.5) {
+            // 绿色威胁 - 50%概率
+            threat = {
+                id: 'green_threat',
+                type: 'low',
+                text: '低级威胁',
+                icon: '🟢',
+                description: '低级网络威胁',
+                points: 100,
+                speed: 1.0
+            };
+        } else if (random < 0.833) {
+            // 黄色威胁 - 33.3%概率
+            threat = {
+                id: 'yellow_threat',
+                type: 'medium',
+                text: '中级威胁',
+                icon: '🟡',
+                description: '中级网络威胁',
+                points: 200,
+                speed: 1.1
+            };
         } else {
-            threat.points = 30;
+            // 红色威胁 - 16.7%概率
+            threat = {
+                id: 'red_threat',
+                type: 'high',
+                text: '高级威胁',
+                icon: '🔴',
+                description: '高级网络威胁',
+                points: 300,
+                speed: 1.2
+            };
         }
+        
+        // 从原始威胁列表中随机选择图标和文字
+        const availableThreats = this.getThreatsForLevel(level);
+        const randomThreat = availableThreats[Math.floor(Math.random() * availableThreats.length)];
+        threat.icon = randomThreat.icon;
+        threat.text = randomThreat.text;
         
         // 根据等级调整速度
         threat.speed *= (1 + (level - 1) * 0.1); // 每级增加10%速度
@@ -268,14 +303,14 @@ class CyberThreats {
 
     // 绘制威胁图案 - 圆形设计，优化性能，放大文字
     drawThreat(ctx, threat, x, y, size) {
-        // 简化颜色分类：根据分数分为3种颜色
+        // 根据分数分为3种颜色：绿色(100分)、黄色(200分)、红色(300分)
         let color;
-        if (threat.points <= 15) {
-            color = '#00ff00'; // 绿色 - 10分档
-        } else if (threat.points <= 25) {
-            color = '#ffaa00'; // 橙色 - 20分档
+        if (threat.points === 100) {
+            color = '#00ff00'; // 绿色 - 100分
+        } else if (threat.points === 200) {
+            color = '#ffaa00'; // 黄色 - 200分
         } else {
-            color = '#ff0040'; // 红色 - 30分档
+            color = '#ff0040'; // 红色 - 300分
         }
         
         // 绘制背景圆形

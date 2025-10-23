@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-title" content="CyberCatch">
     <meta name="description" content="网络安全教育游戏 - 通过头部控制学习网络安全知识">
 
-    <title>CyberCatch - 网络安全防护游戏</title>
+    <title>CyberCatch - 网络安全防护游戏 (离线版)</title>
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
@@ -21,51 +21,59 @@
 
     <link rel="stylesheet" href="style.css">
 
-    <!-- MediaPipe Dependencies - 使用本地fallback -->
+    <!-- MediaPipe Dependencies - 使用本地文件 -->
     <script>
-        // 简化的MediaPipe替代方案，避免HTTP服务器依赖
         window.MediaPipeAvailable = false;
 
-        // 尝试加载MediaPipe，如果失败则使用键盘/触摸控制
+        // 加载本地MediaPipe文件
         function loadMediaPipe() {
             return new Promise((resolve) => {
                 const script1 = document.createElement('script');
-                script1.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js';
-                script1.crossOrigin = 'anonymous';
+                script1.src = './cache/camera_utils.js';
 
                 script1.onload = () => {
                     const script2 = document.createElement('script');
-                    script2.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js';
-                    script2.crossOrigin = 'anonymous';
+                    script2.src = './cache/control_utils.js';
 
                     script2.onload = () => {
                         const script3 = document.createElement('script');
-                        script3.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js';
-                        script3.crossOrigin = 'anonymous';
+                        script3.src = './cache/drawing_utils.js';
 
                         script3.onload = () => {
                             const script4 = document.createElement('script');
-                            script4.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js';
-                            script4.crossOrigin = 'anonymous';
+                            script4.src = './cache/face_mesh.js';
 
                             script4.onload = () => {
                                 window.MediaPipeAvailable = true;
+                                console.log('本地MediaPipe加载成功');
                                 resolve(true);
                             };
 
-                            script4.onerror = () => resolve(false);
+                            script4.onerror = () => {
+                                console.log('face_mesh.js加载失败');
+                                resolve(false);
+                            };
                             document.head.appendChild(script4);
                         };
 
-                        script3.onerror = () => resolve(false);
+                        script3.onerror = () => {
+                            console.log('drawing_utils.js加载失败');
+                            resolve(false);
+                        };
                         document.head.appendChild(script3);
                     };
 
-                    script2.onerror = () => resolve(false);
+                    script2.onerror = () => {
+                        console.log('control_utils.js加载失败');
+                        resolve(false);
+                    };
                     document.head.appendChild(script2);
                 };
 
-                script1.onerror = () => resolve(false);
+                script1.onerror = () => {
+                    console.log('camera_utils.js加载失败');
+                    resolve(false);
+                };
                 document.head.appendChild(script1);
             });
         }
@@ -87,7 +95,7 @@
                         const notice = document.createElement('div');
                         notice.className = 'fallback-notice';
                         notice.innerHTML = `
-                            <h3>🎮 控制方式</h3>
+                            <h3>🎮 离线模式</h3>
                             <p><strong>键盘控制：</strong></p>
                             <p>← A 键：左移</p>
                             <p>→ D 键：右移</p>
@@ -95,6 +103,8 @@
                             <br>
                             <p><strong>移动端：</strong></p>
                             <p>使用下方按钮控制</p>
+                            <br>
+                            <p class="offline-note">📁 MediaPipe文件已内置在cache文件夹<br>离线模式下无法使用头部控制功能</p>
                         `;
                         notice.style.cssText = `
                             background: rgba(0, 255, 255, 0.1);
@@ -118,7 +128,7 @@
         <div class="header">
             <div class="game-title">
                 <h1 class="main-title">
-                    <span class="title-icon">🛡️</span> CyberCatch
+                    <span class="title-icon">🛡️</span> CyberCatch <span class="offline-badge">离线版</span>
                 </h1>
                 <p class="subtitle">
                     <span class="subtitle-icon">🎯</span>
@@ -273,6 +283,24 @@
     <script src="mobile-touch.js"></script>
     <script src="audio-system.js"></script>
     <script src="main.js"></script>
+
+    <style>
+        .offline-badge {
+            background: #ff6b35;
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.3rem;
+            font-size: 0.7rem;
+            margin-left: 0.5rem;
+        }
+        
+        .offline-note {
+            color: #ff6b35;
+            font-weight: bold;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+        }
+    </style>
 </body>
 
 </html>
